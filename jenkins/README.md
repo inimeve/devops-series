@@ -1,73 +1,44 @@
-# Deploy Jenkins locally
-
-- Create jenkins network in docker.
+- Build jenkins image
 
 ```jsx
-docker network create jenkins
+docker build -t docker.io/inimeve/jenkins-local:1.0.0 .
 ```
 
-- In order to run docker command inside pipelines **docker:dind** is needed.
+- Deploy jenkins image
 
 ```jsx
-# Windows
-docker run --name jenkins-docker --rm --detach `
-  --privileged --network jenkins --network-alias docker `
-  --env DOCKER_TLS_CERTDIR=/certs `
-  --volume jenkins-docker-certs:/certs/client `
-  --volume jenkins-data:/var/jenkins_home `
-  docker:dind
-
-# Linux / MacOS
-docker run --name jenkins-docker --rm --detach \
-  --privileged --network jenkins --network-alias docker \
-  --env DOCKER_TLS_CERTDIR=/certs \
-  --volume jenkins-docker-certs:/certs/client \
-  --volume jenkins-data:/var/jenkins_home \
-  docker:dind
+docker run -d -p 8001:8080 -p 50000:50000 --name jenkins-local docker.io/inimeve/jenkins-local:1.0.0
 ```
 
-- Create a customized Jenkins image.
+## ARM64 version
+
+- Build Jenkins customized image. Using arm64 version from jenkins4eval (jenkins4eval/jenkins:slim-arm64).
 
 ```jsx
-# Dockerfile
-FROM jenkins/jenkins:2.277.1-lts-jdk11
+FROM jenkins4eval/jenkins:slim-arm64
+
 USER root
-RUN apt-get update && apt-get install -y apt-transport-https \
-       ca-certificates curl gnupg2 \
-       software-properties-common
+
+# Add the docker binary so running Docker commands from the master works nicely
+RUN apt update
+RUN apt install -y apt-transport-https ca-certificates curl gnupg2 software-properties-common
 RUN curl -fsSL https://download.docker.com/linux/debian/gpg | apt-key add -
-RUN apt-key fingerprint 0EBFCD88
 RUN add-apt-repository \
-       "deb [arch=amd64] https://download.docker.com/linux/debian \
-       $(lsb_release -cs) stable"
+    "deb [arch=arm64] https://download.docker.com/linux/debian \
+    $(lsb_release -cs) stable"
 RUN apt-get update && apt-get install -y docker-ce-cli
+
 USER jenkins
-RUN jenkins-plugin-cli --plugins "blueocean:1.24.5 docker-workflow:1.26"
+
+RUN install-plugins.sh antisamy-markup-formatter matrix-auth blueocean:1.24.6
 ```
 
 ```jsx
-# Build image
-docker build -t jenkins-with-docker:1.0.0 .
+docker build -t docker.io/inimeve/jenkins-local-arm64:1.0.0 .
+
+docker push docker.io/inimeve/jenkins-local-arm64:1.0.0
 ```
 
-- Run created image.
-
 ```jsx
-# Windows
-docker run --name jenkins-with-docker --rm --detach `
-  --network jenkins --env DOCKER_HOST=tcp://docker:2376 `
-  --env DOCKER_CERT_PATH=/certs/client --env DOCKER_TLS_VERIFY=1 `
-  --publish 8080:8080 --publish 50000:50000 `
-  --volume jenkins-data:/var/jenkins_home `
-  --volume jenkins-docker-certs:/certs/client:ro `
-  jenkins-with-docker:1.0.0
-
-# Linux / MacOS
-docker run --name jenkins-with-docker --rm --detach \
-  --network jenkins --env DOCKER_HOST=tcp://docker:2376 \
-  --env DOCKER_CERT_PATH=/certs/client --env DOCKER_TLS_VERIFY=1 \
-  --publish 8080:8080 --publish 50000:50000 \
-  --volume jenkins-data:/var/jenkins_home \
-  --volume jenkins-docker-certs:/certs/client:ro \
-  jenkins-with-docker:1.0.0
+docker run -d -p 8001:8080 -p 50000:50000 --name jenkins-local-arm64 docker.io/inimeve/jenkins-local-arm64:1.0.0
 ```
