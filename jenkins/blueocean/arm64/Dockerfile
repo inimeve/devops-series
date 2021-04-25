@@ -11,6 +11,7 @@ RUN add-apt-repository \
     $(lsb_release -cs) stable"
 RUN apt-get update && apt-get install -y docker-ce-cli
 
+# RUN usermod -a -G docker jenkins
 USER jenkins
 
 RUN install-plugins.sh antisamy-markup-formatter matrix-auth blueocean:1.24.6
